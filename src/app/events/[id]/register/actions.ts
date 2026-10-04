@@ -2,6 +2,7 @@
 
 import { featuredEvent, upcomingEvents, pastEvents, siteConfig } from "@/data/config";
 import { createClient } from "@/utils/supabase/server";
+import { sendBookingConfirmationEmail } from "@/lib/email";
 
 export async function generatePaymentDetails(eventId: string, quantity: number) {
   const allEvents = [featuredEvent, ...upcomingEvents, ...pastEvents];
@@ -88,6 +89,28 @@ export async function submitPayment(eventId: string, quantity: number, exactAmou
       console.error("Booking creation error:", bookingError);
       return { success: false, error: "Failed to create booking." };
     }
+
+    // ── Send booking confirmation email (Email 1) ──
+    try {
+      const allEvents = [featuredEvent, ...upcomingEvents, ...pastEvents];
+      const eventInfo = allEvents.find((e) => e.id === eventId);
+      if (userEmail) {
+        await sendBookingConfirmationEmail({
+          toEmail: userEmail,
+          customerName: customerName,
+          eventTitle: (eventInfo as any)?.title || "Quantum Club Event",
+          eventDate: (eventInfo as any)?.displayDate || (eventInfo as any)?.date || "",
+          eventTime: (eventInfo as any)?.time || "",
+          eventVenue: (eventInfo as any)?.venue || "",
+          quantity: finalQuantity,
+          amount: exactAmount,
+          utr: utr,
+        });
+      }
+    } catch (emailErr) {
+      console.error("[Email] Booking confirmation email failed:", emailErr);
+    }
+    // ───────────────────────────────────────────
 
     return { success: true, bookingId: booking.id };
 
