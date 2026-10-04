@@ -1,7 +1,14 @@
 import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
 const FROM = "onboarding@resend.dev";
+
+// Created on first send: Resend throws without an API key, and doing that at
+// import time breaks the build and every page that imports this file.
+let resend: Resend | undefined;
+function getResend() {
+  resend ??= new Resend(process.env.RESEND_API_KEY);
+  return resend;
+}
 
 // ─────────────────────────────────────────────
 // EMAIL 1: Booking Confirmation (sent on submit)
@@ -81,7 +88,7 @@ export async function sendBookingConfirmationEmail(params: BookingConfirmationPa
 </body></html>`;
 
   try {
-    const { data, error } = await resend.emails.send({
+    const { data, error } = await getResend().emails.send({
       from: FROM,
       to: [toEmail],
       subject: `The Quantum Club | Booking Received - ${eventTitle}`,
@@ -245,7 +252,7 @@ export async function sendTicketEmail(params: TicketEmailParams) {
   try {
     const html = buildTicketEmail(params);
 
-    const { data, error } = await resend.emails.send({
+    const { data, error } = await getResend().emails.send({
       from: "onboarding@resend.dev",
       to: [params.toEmail],
       // "The Quantum Club" branding clearly in the subject
