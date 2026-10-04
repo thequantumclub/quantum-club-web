@@ -2,6 +2,8 @@
 
 import { createClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
+import { sendTicketEmail } from "@/lib/email";
+import { featuredEvent } from "@/data/config";
 
 export async function updateBookingStatus(formData: FormData) {
   const supabase = await createClient();
@@ -77,6 +79,39 @@ export async function updateBookingStatus(formData: FormData) {
         console.error("Ticket generation error:", ticketError);
         throw new Error("Status updated but failed to generate tickets.");
       }
+
+      // ── Send ticket confirmation email via Resend ──────────────────────
+      try {
+        // Use customer_email stored at booking time (no admin API needed)
+        const customerEmail = booking.customer_email;
+
+        if (customerEmail) {
+          const { data: eventData } = await supabase
+            .from("events")
+            .select("title, date, time, location")
+            .eq("id", booking.event_id)
+            .single();
+
+          const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://quantum-club-web.vercel.app";
+
+          await sendTicketEmail({
+            toEmail: customerEmail,
+            customerName: booking.customer_name || "Guest",
+            eventTitle: eventData?.title || featuredEvent.title,
+            eventDate: eventData?.date || featuredEvent.displayDate,
+            eventTime: eventData?.time || featuredEvent.time,
+            eventVenue: eventData?.location || featuredEvent.venue,
+            tickets: tickets.map((t) => ({
+              ticketNumber: t.ticket_number,
+              qrToken: t.qr_token,
+            })),
+            myTicketsUrl: `${appUrl}/my-tickets`,
+          });
+        }
+      } catch (emailErr) {
+        console.error("[Email] Failed to send ticket email:", emailErr);
+      }
+      // ──────────────────────────────────────────────────────────────────
     }
   }
   
