@@ -90,7 +90,7 @@ export default function Navbar() {
                 {link.name}
               </Link>
             ))}
-            <AuthButtonClient />
+            <AuthButtonClient showEmail />
             <Link
               href="/#events"
               onClick={() => setIsOpen(false)}
