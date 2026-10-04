@@ -1,0 +1,63 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand-black: #101116;
+  --color-brand-graphite: #202127;
+  --color-brand-silver: #C8C8CC;
+  --color-brand-white: #F5F5F7;
+  --color-brand-gray: #858891;
+  --color-brand-violet: #8054E9;
+  
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+:root {
+  --background: #101116;
+  --foreground: #F5F5F7;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+  overflow-x: hidden;
+}
+
+.glass-panel {
+  background: #202127;
+  border: 1px solid rgba(200, 200, 204, 0.15);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+}
+
+/* Metallic gradient for selected headings */
+.metallic-text {
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-image: linear-gradient(135deg, #F5F5F7 0%, #C8C8CC 50%, #858891 100%);
+}
+
+.text-gradient-violet {
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-image: linear-gradient(to right, #8054E9, #a88bf0);
+}
+
+/* Primary Button: Ice-white / Metallic-silver with dark text */
+.btn-primary {
+  @apply px-8 py-3 bg-brand-white hover:bg-brand-silver text-brand-black rounded-full font-bold tracking-widest transition-all;
+}
+
+/* Primary Accent Button: Violet */
+.btn-accent {
+  @apply px-8 py-3 bg-brand-violet hover:bg-[#916ef0] text-brand-white rounded-full font-bold tracking-widest transition-all;
+}
+
+/* Secondary Button: Transparent/Graphite with silver border and white text */
+.btn-secondary {
+  @apply px-8 py-3 bg-transparent hover:bg-brand-graphite border border-brand-silver/30 hover:border-brand-silver/60 text-brand-white rounded-full font-bold tracking-widest transition-all;
+}
