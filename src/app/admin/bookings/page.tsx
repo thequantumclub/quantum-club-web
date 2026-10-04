@@ -1,5 +1,5 @@
 import { createClient } from "@/utils/supabase/server";
-import { updateBookingStatus } from "./actions";
+import StatusForm from "./StatusForm";
 
 export default async function AdminBookings() {
   const supabase = await createClient();
@@ -51,25 +51,7 @@ export default async function AdminBookings() {
                   <td className="px-6 py-4 text-brand-silver font-mono">₹{booking.amount}</td>
                   <td className="px-6 py-4 font-mono text-xs">{booking.utr}</td>
                   <td className="px-6 py-4">
-                    <form action={updateBookingStatus} className="flex gap-2 items-center">
-                      <input type="hidden" name="id" value={booking.id} />
-                      <select 
-                        name="status"
-                        defaultValue={booking.status}
-                        className={`px-2 py-1 rounded-lg text-xs font-bold border-none outline-none appearance-none cursor-pointer ${
-                          booking.status === 'PENDING' ? 'bg-yellow-500/20 text-yellow-400' : 
-                          booking.status === 'VERIFIED' ? 'bg-green-500/20 text-green-400' :
-                          'bg-red-500/20 text-red-400'
-                        }`}
-                      >
-                        <option value="PENDING">PENDING</option>
-                        <option value="VERIFIED">VERIFIED</option>
-                        <option value="REJECTED">REJECTED</option>
-                      </select>
-                      <button type="submit" className="text-xs px-2 py-1 bg-white/10 hover:bg-white/20 text-white rounded transition-colors">
-                        Save
-                      </button>
-                    </form>
+                    <StatusForm id={booking.id} status={booking.status} />
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     {new Date(booking.created_at).toLocaleDateString()}

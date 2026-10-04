@@ -78,6 +78,7 @@ DROP POLICY IF EXISTS "Admins can update all bookings" ON public.bookings;
 DROP POLICY IF EXISTS "Users can view their own tickets" ON public.tickets;
 DROP POLICY IF EXISTS "Users can insert their own tickets" ON public.tickets;
 DROP POLICY IF EXISTS "Users can update their own tickets" ON public.tickets;
+DROP POLICY IF EXISTS "Admins can insert tickets" ON public.tickets;
 DROP POLICY IF EXISTS "Admins can view all tickets" ON public.tickets;
 DROP POLICY IF EXISTS "Admins can update all tickets" ON public.tickets;
 
@@ -102,6 +103,8 @@ CREATE POLICY "Admins can update all bookings" ON public.bookings FOR UPDATE USI
 -- Tickets Policies
 CREATE POLICY "Users can view their own tickets" ON public.tickets FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "Users can insert their own tickets" ON public.tickets FOR INSERT WITH CHECK (auth.uid() = user_id);
+-- Verifying a booking inserts tickets owned by the customer, not the admin
+CREATE POLICY "Admins can insert tickets" ON public.tickets FOR INSERT WITH CHECK (EXISTS (SELECT 1 FROM public.admins WHERE user_id = auth.uid()));
 CREATE POLICY "Admins can view all tickets" ON public.tickets FOR SELECT USING (EXISTS (SELECT 1 FROM public.admins WHERE user_id = auth.uid()));
 CREATE POLICY "Admins can update all tickets" ON public.tickets FOR UPDATE USING (EXISTS (SELECT 1 FROM public.admins WHERE user_id = auth.uid()));
 

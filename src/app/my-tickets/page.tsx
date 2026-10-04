@@ -18,7 +18,18 @@ export default async function MyTicketsPage() {
     .eq("user_id", authData.user.id)
     .order("created_at", { ascending: false });
 
+  // Tickets only exist once an admin verifies the payment, so show bookings
+  // still awaiting (or refused) verification too
+  const { data: bookings, error: bookingsError } = await supabase
+    .from("bookings")
+    .select("id, event_id, quantity, amount, utr, status, created_at")
+    .eq("user_id", authData.user.id)
+    .in("status", ["PENDING", "REJECTED"])
+    .order("created_at", { ascending: false });
+
   const allEvents = [featuredEvent, ...upcomingEvents, ...pastEvents];
+  const unverifiedBookings = bookings ?? [];
+  const hasNothing = (!tickets || tickets.length === 0) && unverifiedBookings.length === 0;
 
   return (
     <div className="pt-32 pb-24 bg-brand-black min-h-screen">
@@ -30,29 +41,62 @@ export default async function MyTicketsPage() {
           <ArrowLeft className="w-4 h-4 mr-2" /> Back to home
         </Link>
 
-        <div className="flex items-center gap-4 mb-8">
+        <div className="flex items-center gap-4 mb-2">
           <div className="p-3 bg-brand-violet/20 rounded-xl">
             <Ticket className="w-8 h-8 text-brand-violet" />
           </div>
           <h1 className="text-3xl md:text-4xl font-bold text-white">My Tickets</h1>
         </div>
+        <p className="text-sm text-gray-500 mb-8">Signed in as {authData.user.email}</p>
 
-        {error ? (
+        {error || bookingsError ? (
           <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400">
             Error loading tickets. Please try again later.
           </div>
-        ) : !tickets || tickets.length === 0 ? (
+        ) : hasNothing ? (
           <div className="p-12 glass-panel rounded-3xl border border-white/5 text-center">
             <Ticket className="w-16 h-16 text-gray-600 mx-auto mb-4" />
             <h2 className="text-xl font-semibold text-white mb-2">No tickets found</h2>
-            <p className="text-gray-400 mb-6">You haven't purchased any tickets yet.</p>
+            <p className="text-gray-400 mb-2">You haven&apos;t purchased any tickets with this account yet.</p>
+            <p className="text-sm text-gray-500 mb-6">Booked with a different Gmail? Log out and sign in with that account.</p>
             <Link href="/" className="btn-primary">
               BROWSE EVENTS
             </Link>
           </div>
         ) : (
           <div className="grid gap-4 md:grid-cols-2">
-            {tickets.map((ticket) => {
+            {unverifiedBookings.map((booking) => {
+              const eventInfo = allEvents.find(e => e.id === booking.event_id);
+              const eventTitle = eventInfo ? eventInfo.title : "Unknown Event";
+              const rejected = booking.status === 'REJECTED';
+
+              return (
+                <div key={booking.id} className="p-6 glass-panel rounded-2xl border border-white/10 flex flex-col justify-between">
+                  <div>
+                    <div className="flex justify-between items-start gap-2 mb-4">
+                      <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                        rejected
+                          ? 'bg-red-500/20 text-red-400 border border-red-500/30'
+                          : 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
+                      }`}>
+                        {rejected ? 'PAYMENT REJECTED' : 'PENDING VERIFICATION'}
+                      </span>
+                      <span className="text-sm font-mono text-gray-400">UTR {booking.utr}</span>
+                    </div>
+                    <h3 className="text-xl font-bold text-white mb-1">{eventTitle}</h3>
+                    <p className="text-sm text-gray-400 mb-4">
+                      {booking.quantity} ticket{booking.quantity > 1 ? "s" : ""} &bull; ₹{booking.amount} &bull; Booked on {new Date(booking.created_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <p className="text-sm text-gray-400">
+                    {rejected
+                      ? "We couldn't verify this payment. Please contact us on WhatsApp with your UTR number."
+                      : "We're verifying your payment. Your tickets will appear here once it's confirmed."}
+                  </p>
+                </div>
+              );
+            })}
+            {(tickets ?? []).map((ticket) => {
               const eventInfo = allEvents.find(e => e.id === ticket.event_id);
               const eventTitle = eventInfo ? eventInfo.title : "Unknown Event";
               

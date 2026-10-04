@@ -1,6 +1,9 @@
 import { Resend } from "resend";
 
-const FROM = "onboarding@resend.dev";
+// Must be an address on a domain verified in Resend, e.g.
+// "The Quantum Club <tickets@yourdomain.com>". Resend's testing sender only
+// delivers to the Resend account owner's own email address.
+const FROM = process.env.EMAIL_FROM || "onboarding@resend.dev";
 
 // Created on first send: Resend throws without an API key, and doing that at
 // import time breaks the build and every page that imports this file.
@@ -253,7 +256,7 @@ export async function sendTicketEmail(params: TicketEmailParams) {
     const html = buildTicketEmail(params);
 
     const { data, error } = await getResend().emails.send({
-      from: "onboarding@resend.dev",
+      from: FROM,
       to: [params.toEmail],
       // "The Quantum Club" branding clearly in the subject
       subject: `The Quantum Club | 🎟️ Your ticket for ${params.eventTitle} is confirmed!`,

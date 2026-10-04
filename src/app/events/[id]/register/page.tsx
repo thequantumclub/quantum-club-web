@@ -35,6 +35,7 @@ export default function RegistrationPage({ params }: { params: Promise<{ id: str
   } | null>(null);
 
   const [utr, setUtr] = useState("");
+  const [accountEmail, setAccountEmail] = useState("");
   const [isLaunchingUPI, setIsLaunchingUPI] = useState(false);
   const [upiError, setUpiError] = useState("");
 
@@ -45,6 +46,7 @@ export default function RegistrationPage({ params }: { params: Promise<{ id: str
       if (!session) {
         router.push(`/login?next=/events/${id}/register`);
       } else {
+        setAccountEmail(session.user.email ?? "");
         setStep("form");
       }
     };
@@ -185,6 +187,11 @@ export default function RegistrationPage({ params }: { params: Promise<{ id: str
           <p className="text-gray-400 mb-8">
             Your payment is currently pending verification. Once an admin verifies your payment, your tickets will automatically appear in your account.
           </p>
+          {accountEmail && (
+            <p className="text-sm text-gray-400 mb-8 -mt-4">
+              To see your tickets, sign in with <span className="text-white font-medium">{accountEmail}</span>
+            </p>
+          )}
           
           <Link 
             href="/my-tickets"
@@ -293,6 +300,11 @@ export default function RegistrationPage({ params }: { params: Promise<{ id: str
           <div className="mb-8 border-b border-white/10 pb-8">
             <h1 className="text-3xl md:text-4xl font-bold mb-2 text-white">Select Tickets</h1>
             <p className="text-brand-violet font-semibold text-lg">{event.title}</p>
+            {accountEmail && (
+              <p className="text-sm text-gray-400 mt-3">
+                Booking as <span className="text-white font-medium">{accountEmail}</span>. Your tickets will be in this account.
+              </p>
+            )}
           </div>
 
           {status === "error" && (

@@ -5,7 +5,10 @@ import { revalidatePath } from "next/cache";
 import { sendTicketEmail } from "@/lib/email";
 import { featuredEvent } from "@/data/config";
 
-export async function updateBookingStatus(formData: FormData) {
+export async function updateBookingStatus(
+  _prevState: { message: string },
+  formData: FormData
+): Promise<{ message: string }> {
   const supabase = await createClient();
   
   // Auth Check
@@ -34,20 +37,13 @@ export async function updateBookingStatus(formData: FormData) {
     
   if (fetchError || !booking) throw new Error("Booking not found");
 
-  // 2. Update booking status
-  const { error: updateError } = await supabase
-    .from("bookings")
-    .update({ status })
-    .eq("id", id);
-    
-  if (updateError) {
-    console.error("Error updating booking:", updateError.message);
-    throw new Error("Failed to update booking status");
-  }
-  
-  // 3. Generate tickets if status changed to VERIFIED
-  if (status === "VERIFIED" && booking.status !== "VERIFIED") {
-    // Check if tickets already exist just to be absolutely safe against race conditions
+  // 2. A VERIFIED booking must have tickets, so create them before changing the
+  // status: if the insert fails the booking stays as it was instead of showing
+  // VERIFIED with no tickets. Re-saving VERIFIED also repairs older bookings
+  // that ended up in that state.
+  let newTickets: { ticket_number: string; qr_token: string }[] = [];
+  if (status === "VERIFIED") {
+    // Check if tickets already exist so re-saving never creates duplicates
     const { data: existingTickets } = await supabase
       .from("tickets")
       .select("id")
@@ -77,43 +73,61 @@ export async function updateBookingStatus(formData: FormData) {
         
       if (ticketError) {
         console.error("Ticket generation error:", ticketError);
-        throw new Error("Status updated but failed to generate tickets.");
+        return {
+          message: `Tickets could not be created, so this booking was not changed. (Database: ${ticketError.message})`,
+        };
       }
-
-      // ── Send ticket confirmation email via Resend ──────────────────────
-      try {
-        // Use customer_email stored at booking time (no admin API needed)
-        const customerEmail = booking.customer_email;
-
-        if (customerEmail) {
-          const { data: eventData } = await supabase
-            .from("events")
-            .select("title, date, time, location")
-            .eq("id", booking.event_id)
-            .single();
-
-          const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://quantum-club-web.vercel.app";
-
-          await sendTicketEmail({
-            toEmail: customerEmail,
-            customerName: booking.customer_name || "Guest",
-            eventTitle: eventData?.title || featuredEvent.title,
-            eventDate: eventData?.date || featuredEvent.displayDate,
-            eventTime: eventData?.time || featuredEvent.time,
-            eventVenue: eventData?.location || featuredEvent.venue,
-            tickets: tickets.map((t) => ({
-              ticketNumber: t.ticket_number,
-              qrToken: t.qr_token,
-            })),
-            myTicketsUrl: `${appUrl}/my-tickets`,
-          });
-        }
-      } catch (emailErr) {
-        console.error("[Email] Failed to send ticket email:", emailErr);
-      }
-      // ──────────────────────────────────────────────────────────────────
+      newTickets = tickets;
     }
   }
-  
+
+  // 3. Update booking status
+  const { error: updateError } = await supabase
+    .from("bookings")
+    .update({ status })
+    .eq("id", id);
+
+  if (updateError) {
+    console.error("Error updating booking:", updateError.message);
+    return { message: "Failed to update booking status. Please try again." };
+  }
+
+  // 4. Email the customer their new tickets
+  if (newTickets.length > 0) {
+    // ── Send ticket confirmation email via Resend ──────────────────────
+    try {
+      // Use customer_email stored at booking time (no admin API needed)
+      const customerEmail = booking.customer_email;
+
+      if (customerEmail) {
+        const { data: eventData } = await supabase
+          .from("events")
+          .select("title, date, time, location")
+          .eq("id", booking.event_id)
+          .single();
+
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://quantum-club-web.vercel.app";
+
+        await sendTicketEmail({
+          toEmail: customerEmail,
+          customerName: booking.customer_name || "Guest",
+          eventTitle: eventData?.title || featuredEvent.title,
+          eventDate: eventData?.date || featuredEvent.displayDate,
+          eventTime: eventData?.time || featuredEvent.time,
+          eventVenue: eventData?.location || featuredEvent.venue,
+          tickets: newTickets.map((t) => ({
+            ticketNumber: t.ticket_number,
+            qrToken: t.qr_token,
+          })),
+          myTicketsUrl: `${appUrl}/my-tickets`,
+        });
+      }
+    } catch (emailErr) {
+      console.error("[Email] Failed to send ticket email:", emailErr);
+    }
+    // ──────────────────────────────────────────────────────────────────
+  }
+
   revalidatePath("/admin/bookings");
+  return { message: "" };
 }
