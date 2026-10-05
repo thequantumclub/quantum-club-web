@@ -9,6 +9,9 @@ import { generatePaymentDetails, submitPayment } from "./actions";
 import { createClient } from "@/utils/supabase/client";
 import QRCode from "react-qr-code";
 
+// UPI UTR numbers are 12 digits; submitPayment rejects anything else
+const UTR_LENGTH = 12;
+
 export default function RegistrationPage({ params }: { params: Promise<{ id: string }> }) {
   const allEvents = [featuredEvent, ...upcomingEvents, ...pastEvents];
   const { id } = use(params);
@@ -126,9 +129,12 @@ export default function RegistrationPage({ params }: { params: Promise<{ id: str
     }, 2500);
   };
 
+  const utrComplete = utr.length === UTR_LENGTH;
+  const utrRemaining = UTR_LENGTH - utr.length;
+
   const onSubmitPayment = async () => {
-    if (!utr.trim()) {
-      setErrorMsg("Please enter the UTR / Reference number.");
+    if (!utrComplete) {
+      setErrorMsg(`Please enter all ${UTR_LENGTH} digits of your UTR number.`);
       setStatus("error");
       return;
     }
@@ -264,13 +270,33 @@ export default function RegistrationPage({ params }: { params: Promise<{ id: str
               )}
 
               <div className="space-y-4">
-                <input 
-                  type="text"
-                  value={utr}
-                  onChange={(e) => setUtr(e.target.value)}
-                  className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-silver transition-colors"
-                  placeholder="Enter 12-digit UTR number"
-                />
+                <div>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="off"
+                      maxLength={UTR_LENGTH}
+                      value={utr}
+                      onChange={(e) => setUtr(e.target.value.replace(/\D/g, "").slice(0, UTR_LENGTH))}
+                      aria-describedby="utr-hint"
+                      className={`w-full bg-black/50 border rounded-xl px-4 py-3 pr-12 text-white focus:outline-none transition-colors ${
+                        utrComplete ? "border-green-500/60 focus:border-green-500" : "border-white/10 focus:border-brand-silver"
+                      }`}
+                      placeholder="Enter 12-digit UTR number"
+                    />
+                    {utrComplete && (
+                      <CheckCircle2 aria-hidden="true" className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-green-400" />
+                    )}
+                  </div>
+                  <p id="utr-hint" aria-live="polite" className={`text-xs mt-2 ${utrComplete ? "text-green-400" : "text-gray-400"}`}>
+                    {utrComplete
+                      ? `All ${UTR_LENGTH} digits entered`
+                      : utr.length > 0
+                        ? `${utrRemaining} digit${utrRemaining === 1 ? "" : "s"} remaining`
+                        : "Find the 12-digit UTR in your UPI app's payment details."}
+                  </p>
+                </div>
                 <button 
                   onClick={onSubmitPayment}
                   disabled={status === "loading"}
